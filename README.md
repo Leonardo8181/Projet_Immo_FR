@@ -12,6 +12,7 @@ Ce dataset regroupe les transactions immobilières de **2014 à 2024** (prix, su
 Le projet se compose de 3 parties principales 
 ### 1. Entraînement des modèles
 Deux modèles distincts sont entraînés pour les appartements et les maisons:`train_model_immo_1_Appartement.py` et `train_model_immo_2_Maison.py`
+(LightGBM a été choisi pour sa rapidité et sa capacité à gérer efficacement de grands volumes de données tabulaires.)
 
 Chaque script :
 - Nettoie les données (suppression des outliers, normalisation des codes postaux).
