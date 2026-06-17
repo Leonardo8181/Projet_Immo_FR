@@ -1,0 +1,8 @@
+streamlit
+requests
+pandas
+folium
+streamlit-folium
+langchain
+langchain-mistralai
+langchain-core
