@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-#   MLflow Configuration 
+#   MLflow Config
 load_dotenv()
 os.getenv("AWS_ACCESS_KEY_ID")
 os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -17,7 +17,7 @@ os.environ['AWS_DEFAULT_REGION'] = os.getenv('AWS_DEFAULT_REGION')
 mlflow.set_tracking_uri("https://luleifrance-serveur-mlflow.hf.space")  # URL directe
 EXPERIMENT_NAME = "projet-immobilier-fr-Maison"
 
-# Créer ou récupérer l'expérience
+# Creer ou recuperer l'experience
 experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
 if experiment is None:
     experiment_id = mlflow.create_experiment(EXPERIMENT_NAME)
@@ -28,7 +28,7 @@ mlflow.set_experiment(EXPERIMENT_NAME)
 # Chargement du fichier de transactions
 df = pd.read_csv('src/transactions_complet.csv')
 
-#  1. Suppression des colonnes inutiles (sauf les surfaces brutes) 
+#  1. Suppression des colonnes inutiles 
 cols_surfaces_brutes = [
     'surface_dependances',
     'surface_locaux_industriels',
@@ -45,23 +45,23 @@ colonnes_a_supprimer = [
 ]
 df.drop(columns=colonnes_a_supprimer, inplace=True, errors='ignore')
 
-#  2. Conversion de la date et création de annee_mois 
+#  2. Conversion de la date et creation de annee_mois 
 df['date_transaction'] = pd.to_datetime(df['date_transaction'])
 df['annee_mois'] = df['date_transaction'].dt.to_period('M').astype(str)
 
-#  3. Filtrage : 5 dernières années + uniquement Maison 
+#  3. Filtrage : 5 dernières annees + uniquement Maison 
 max_date = df['date_transaction'].max()
 cutoff_date = max_date - pd.DateOffset(years=5)
 df = df[(df['date_transaction'] >= cutoff_date) & (df['type_batiment'] == 'Maison')]
 print(f"Après filtrage (5 ans + Maison) : {len(df)} lignes.")
 
-#  4. Normalisation du code postal et du département 
+#  4. Normalisation du code postal et du departement 
 df['code_postal'] = pd.to_numeric(df['code_postal'], errors='coerce').fillna(0).astype(int).astype(str).str.zfill(5)
 df['departement'] = df['departement'].astype(str).str[:2].str.pad(2, side='left', fillchar='0')
 df = df[df['departement'] != '97']   # pas d'outre-mer
 
 
-# 5. Calcul de la surface du terrain (uniquement à partir de surface_terrains_sols)
+# 5. Calcul de la surface du terrain (only on surface_terrains_sols)
 
 def parse_surface_set(val):
     """Extrait la somme des entiers d'une chaîne du type '{123,60}' ou '{}'."""
@@ -70,50 +70,50 @@ def parse_surface_set(val):
     nums = re.findall(r'\d+', str(val))
     return sum(map(float, nums)) if nums else 0.0
 
-# On ne parse que la colonne qui nous intéresse
+# On ne parse que la colonne qui nous interesse
 if 'surface_terrains_sols' in df.columns:
     df['surface_terrains_sols'] = df['surface_terrains_sols'].apply(parse_surface_set)
 
 # surface_terrain = surface_terrains_sols
 df['surface_terrain'] = df['surface_terrains_sols']
 
-# Suppression de toutes les colonnes de surfaces brutes (elles ne sont plus nécessaires)
+# Suppression de toutes les colonnes de surfaces brutes (elles ne sont plus necessaires)
 df.drop(columns=cols_surfaces_brutes, inplace=True, errors='ignore')
 
 
-# 6. Création du metres carrés de référence – MÉDIANE RÉCENTE PAR VILLE
+# 6. Creation du metres carres de reference – MeDIANE ReCENTE PAR VILLE
 
-print("Calcul du metres carrés de référence (médiane des 6 derniers mois, par ville)...")
+print("Calcul du metres carres de reference (mediane des 6 derniers mois, par ville)...")
 
 if 'prix_m2' not in df.columns:
     df['prix_m2'] = df['prix'] / df['surface_habitable']
 
-# Date de référence : la transaction la plus récente du dataset filtré
+# Date de reference : la transaction la plus recente du dataset filtre
 date_max = df['date_transaction'].max()
 date_limite = date_max - pd.DateOffset(months=6)
 
 # Sous‑ensemble des 6 derniers mois
 df_recent = df[df['date_transaction'] >= date_limite].copy()
 
-# Médiane du metres carrés par ville sur cette période
+# Mediane du metres carres par ville sur cette periode
 ref_ville = df_recent.groupby('code_postal')['prix_m2'].median().reset_index(name='prix_m2_ref_ville')
 
-# Médiane départementale (fallback)
+# Mediane departementale (fallback)
 ref_dep = df_recent.groupby('departement')['prix_m2'].median().reset_index(name='prix_m2_ref_dep')
 
 # Fusion avec le DataFrame principal
 df = df.merge(ref_ville, on='code_postal', how='left')
 df = df.merge(ref_dep, on='departement', how='left')
 
-# Coalescence : ville → département → médiane nationale
+# Coalescence : ville → departement → mediane nationale
 df['prix_m2_ref'] = df['prix_m2_ref_ville'].fillna(df['prix_m2_ref_dep'])
 df['prix_m2_ref'] = df['prix_m2_ref'].fillna(df['prix_m2'].median())
 
-# Nettoyage des colonnes intermédiaires
+# Nettoyage des colonnes intermediaires
 df.drop(columns=['prix_m2_ref_ville', 'prix_m2_ref_dep'], inplace=True, errors='ignore')
-print("prix_m2_ref (médiane récente par ville) ajouté.")
+print("prix_m2_ref (mediane recente par ville) ajoute.")
 
-#  7. Clustering géospatial 
+#  7. Clustering geospatial 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
@@ -132,7 +132,7 @@ df['dist_centre_cluster'] = np.sqrt(
 print("Nombre de transactions par cluster (extrait) :")
 print(df['cluster_geo'].value_counts().head(10))
 
-#  8. Sélection des colonnes finales 
+#  8. Selection des colonnes finales 
 colonnes_finales = [
     'prix',
     'n_pieces',
@@ -161,7 +161,7 @@ df.dropna(subset=num_cols, inplace=True)
 print(f"DataFrame final prêt : {df.shape[0]} lignes, {df.shape[1]} colonnes.")
 
 
-# 8. ENTRAÎNEMENT DU MODÈLE (LightGBM) – MAISON OPTIMISÉE 
+# 8. ENTRAINEMENT DU MODELE (LightGBM)  
 
 import pandas as pd
 import numpy as np
@@ -178,15 +178,15 @@ import joblib
 try:
     model_test = lgb.LGBMRegressor(device='gpu')
     lgb_device = 'gpu'
-    print("LightGBM : GPU activé.")
-    max_bin_upper = 200        # accélère sans perte notable
+    print("LightGBM : GPU active.")
+    max_bin_upper = 200        # accelère sans perte notable
 except Exception:
     lgb_device = 'cpu'
     max_bin_upper = 255
     print("LightGBM : CPU.")
 
 
-# 1. FILTRAGE RENFORCÉ
+# 1. FILTRAGE
 
 print("Filtrage quantiles 0.5% – 99.5%")
 low_price, high_price = df['prix'].quantile([0.005, 0.995])
@@ -216,7 +216,7 @@ df.dropna(inplace=True)
 print(f"Lignes après filtrage : {len(df)}")
 
 
-# 2. FEATURE ENGINEERING (inchangé)
+# 2. FEATURE ENGINEERING 
 
 df.drop(columns=['prix_m2'], inplace=True, errors='ignore')
 
@@ -254,7 +254,7 @@ X_train, X_test, y_train_log, y_test_log = train_test_split(
 print(f"Train : {X_train.shape}, Test : {X_test.shape}")
 
 
-# 4. PRÉPROCESSEUR RAPIDE POUR OPTUNA (TargetEncoder cv=5)
+# 4. PRePROCESSEUR RAPIDE POUR OPTUNA 
 
 preprocessor_optuna = ColumnTransformer(
     transformers=[
@@ -265,9 +265,9 @@ preprocessor_optuna = ColumnTransformer(
 preprocessor_optuna.set_output(transform='pandas')
 
 
-# 5. RECHERCHE OPTUNA (50 essais, accélérée)
+# 5. RECHERCHE OPTUNA 
 
-n_search = min(150_000, len(X_train))          # sous-échantillon réduit
+n_search = min(150_000, len(X_train))          # sous-echantillon reduit
 frac_echantillon = n_search / len(X_train)
 X_search, _, y_search, _ = train_test_split(
     X_train, y_train_log, train_size=n_search, random_state=42
@@ -305,7 +305,7 @@ best_params = study.best_params
 print("Meilleurs hyperparamètres :", best_params)
 
 
-# 6. ENTRAÎNEMENT FINAL (robuste, avec cv=10 et early stopping 50)
+# 6. ENTRAINEMENT FINAL (robuste, avec cv=10 et early stopping 50)
 
 final_params = best_params.copy()
 final_params['n_estimators'] = 2000
@@ -335,7 +335,7 @@ model.fit(X_tr_prep, y_tr_final_log,
 best_model = Pipeline([('prep', preprocessor_final), ('model', model)])
 
 
-# 7. ÉVALUATION
+# 7. Evalu
 
 y_pred_train_log = best_model.predict(X_train)
 y_pred_test_log  = best_model.predict(X_test)
@@ -349,45 +349,40 @@ r2_train  = r2_score(y_train_orig, y_pred_train)
 mae_test  = mean_absolute_error(y_test_orig, y_pred_test)
 r2_test   = r2_score(y_test_orig, y_pred_test)
 
-print("\n=== Performances du modèle LightGBM optimisé (Maisons) ===")
+print("\n=== Performances du modèle LightGBM optimise (Maisons) ===")
 print(f"Train : MAE = {mae_train:,.0f} € | R² = {r2_train:.4f}")
 print(f"Test  : MAE = {mae_test:,.0f} € | R² = {r2_test:.4f}")
 
 
-# 9. SAUVEGARDE DU MODÈLE FINAL COMPLET (Maisons)
+# 9. Save modele pour la maison
 
 import joblib
 
-# ----- Récupération des objets de l'étape 6 (clustering) déjà ajustés -----
-# Ces variables sont encore dans la mémoire : scaler, kmeans
-# (elles ont été créées sur le dataframe AVANT filtrage des outliers)
 scaler_coords = scaler          # StandardScaler sur [latitude, longitude]
 kmeans_all = kmeans             # KMeans 200 clusters
 
-# ----- Artefacts pour le calcul de prix_m2_ref -----
-# ref_ville et ref_dep proviennent de l'étape 5 (version Maison), toujours disponibles.
-# La médiane nationale récente est calculée sur df_recent (étape 5).
-mediane_prix_m2 = df_recent['prix_m2'].median()
-print(f"Médiane nationale récente (6 derniers mois) : {mediane_prix_m2:.2f} €/m²")
 
-# ----- Regroupement dans un dictionnaire unique -----
+mediane_prix_m2 = df_recent['prix_m2'].median()
+print(f"Mediane nationale recente (6 derniers mois) : {mediane_prix_m2:.2f} €/m²")
+
+# ----- Regroupement dans un dict
 modele_final = {
     'model': best_model,                     # Pipeline (preprocessor + LGBM)
     'kmeans': kmeans_all,                    # KMeans 200 clusters
-    'scaler_coords': scaler_coords,          # StandardScaler pour coordonnées
+    'scaler_coords': scaler_coords,          # StandardScaler pour coordonnees
     'ref_ville': ref_ville,                  # DataFrame [code_postal, prix_m2_ref_ville]
     'ref_dep': ref_dep,                      # DataFrame [departement, prix_m2_ref_dep]
     'mediane_prix_m2': mediane_prix_m2,      # float
 }
 
-# Sauvegarde d’un seul fichier
+
 joblib.dump(modele_final, 'final_model_maisons.pkl')
-print("\n Modèle final complet (Maisons) sauvegardé dans 'final_model_maisons.pkl'")
+print("\n Modèle final complet (Maisons) sauvegarde dans 'final_model_maisons.pkl'")
 
 
 
 #  MLflow Tracking Partie FIN 
-from datetime import datetime  # déjà importé en haut, mais s'assurer qu'il est là
+from datetime import datetime  # dejà importe en haut, mais s'assurer qu'il est là
 
 # Nom du run dynamique
 run_name = f"LGBM_immo_{datetime.now().strftime('%b%d_%H-%M')}"
@@ -398,7 +393,7 @@ with mlflow.start_run(experiment_id=experiment_id, run_name=run_name):
     mlflow.log_param("frac_echantillon", frac_echantillon)
     mlflow.log_param("nb_clusters", 200)
 
-    # Log des métriques
+    # Log des metriques
     mlflow.log_metrics({
         "mae_train": mae_train,
         "r2_train": r2_train,
@@ -409,7 +404,10 @@ with mlflow.start_run(experiment_id=experiment_id, run_name=run_name):
     # Log de l'artefact final (modèle complet)
     mlflow.log_artifact('final_model_maisons.pkl', artifact_path="modele_immo")
 
-    print(" Modèle uploadé sur le serveur MLflow.")
+    print(" Modèle uploade sur le serveur MLflow.")
 
 
-print("\n Modèle final complet sauvegardé dans 'final_model_maisons.pkl'")
+print("\n Modèle final complet sauvegarde dans 'final_model_maisons.pkl'")
+
+
+   

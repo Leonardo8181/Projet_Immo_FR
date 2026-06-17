@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-#MLflow Configuration
+#        MLflow Configuration
 load_dotenv()
 os.getenv("AWS_ACCESS_KEY_ID")
 os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -17,7 +17,7 @@ os.environ['AWS_DEFAULT_REGION'] = os.getenv('AWS_DEFAULT_REGION')
 mlflow.set_tracking_uri("https://luleifrance-serveur-mlflow.hf.space")  # URL directe
 EXPERIMENT_NAME = "projet-immobilier-fr"
 
-# Créer ou récupérer l'expérience
+# Creer ou recuperer expérience
 experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
 if experiment is None:
     experiment_id = mlflow.create_experiment(EXPERIMENT_NAME)
@@ -50,20 +50,20 @@ df.drop(columns=colonnes_a_supprimer, inplace=True, errors='ignore')
 df['date_transaction'] = pd.to_datetime(df['date_transaction'])
 df['annee_mois'] = df['date_transaction'].dt.to_period('M').astype(str)
 
-# Filtrage : 5 dernières années + uniquement Appartement 
+# Filtrage :   5 dernières années + uniquement Appartement 
 max_date = df['date_transaction'].max()
 cutoff_date = max_date - pd.DateOffset(years=5)
 df = df[(df['date_transaction'] >= cutoff_date) & (df['type_batiment'] == 'Appartement')]
 print(f"Après filtrage (5 ans + Appartement) : {len(df)} lignes.")
 
-#  Normalisation du code postal et du département
+#                      Normalisation du code postal et du département
 df['code_postal'] = pd.to_numeric(df['code_postal'], errors='coerce').fillna(0).astype(int).astype(str).str.zfill(5)
 df['departement'] = df['departement'].astype(str).str[:2].str.pad(2, side='left', fillchar='0')
 df = df[df['departement'] != '97']   # pas d'outre-mer
 
 
-# Création du prix de référence – MÉDIANE RÉCENTE PAR VILLE
-#           identique pour tous les biens d’une même ville
+#                    Creation du prix de reference – MEDIANE RECENTE PAR VILLE
+#           identique pour tous les biens d’une meme ville
 print("Calcul du prix/m² de référence (médiane des 6 derniers mois, par ville)...")
 
 df['date_transaction'] = pd.to_datetime(df['date_transaction'])
@@ -116,7 +116,7 @@ df['dist_centre_cluster'] = np.sqrt(
 print("Nombre de transactions par cluster (extrait) :")
 print(df['cluster_geo'].value_counts().head(10))
 
-#  Suppression des colonnes temporelles et id_transaction ----------
+#  Suppression des colonnes temporelles et id_transaction ---
 df = df.drop(columns=['id_transaction', 'date_transaction', 'annee_mois','code_postal','ville','type_batiment'], errors='ignore')
 
 
@@ -133,7 +133,7 @@ df.dropna(subset=num_cols, inplace=True)
 
 
 
-#  ENTRAÎNEMENT DU MODÈLE (LightGBM) – version accélérée
+#  ENTRAINEMENT DU MODELE (LightGBM)
 
 import pandas as pd
 import numpy as np
@@ -169,7 +169,7 @@ df = df[
     (df['surface_habitable'] >= low_surf) & (df['surface_habitable'] <= high_surf)
 ].copy()
 
-# Filtrage local par département (IQR) pour éliminer les valeurs aberrantes spécifiques à chaque région
+# Filtrage local par département  pour éliminer les valeurs aberrantes spécifiques à chaque région
 def filter_outliers_iqr(df, group_col, target_col, factor=4.5):
     def _filter(group):
         Q1 = group[target_col].quantile(0.25)
@@ -182,7 +182,7 @@ def filter_outliers_iqr(df, group_col, target_col, factor=4.5):
 
 df = filter_outliers_iqr(df, 'departement', 'prix', factor=4.5)
 
-# Nettoyage des éventuels infinis / NaN résiduels
+# Nettoyage des éventuels infinis / NAN 
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.dropna(inplace=True)
 print(f"Lignes conservées après filtrage : {len(df)}")
@@ -215,7 +215,7 @@ print(f"Train : {X_train.shape}, Test : {X_test.shape}")
 
 
 
-# 4. PRÉPROCESSEUR (sans OneHotEncoder, car l'on n'a pas de linéarité et TargetEncoder pour les catégorielles)
+# 4. PREPROCESSEUR (sans OneHotEncoder, car l'on n'a pas de linéarité et TargetEncoder pour les catégorielles)
 preprocessor = ColumnTransformer(
     transformers=[
         ('num', StandardScaler(), num_features),
@@ -224,7 +224,7 @@ preprocessor = ColumnTransformer(
     ])
 preprocessor.set_output(transform='pandas')
 
-# 5. RECHERCHE D'HYPERPARAMÈTRES (Optuna, accéléré)
+# 5. RECHERCHE D'HYPERPARAMÈTRES (Optuna)
 # Sous‑échantillon pour la recherche : max 300 000 lignes (ou tout le train si plus petit)
 n_search = min(300_000, len(X_train))
 frac_echantillon = n_search / len(X_train)
@@ -318,23 +318,19 @@ print(f"Test  : MAE = {mae_test:,.0f} € | R² = {r2_test:.4f}")
 
 
 
-# 8. SAUVEGARDE DU MODÈLE FINAL COMPLET (modèle + artefacts cohérents)
+# 8. Save modele pour l'appart
 import joblib
 
-# Récupération des objets de l'étape 6 (clustering) déjà ajustés
-# Ces variables sont encore dans la mémoire : scaler, kmeans
-# (elles ont été créées sur le dataframe AVANT filtrage des outliers)
 scaler_coords = scaler          # StandardScaler sur [latitude, longitude]
 kmeans_all = kmeans             # KMeans 200 clusters
 
 #  Artefacts pour le calcul de prix_m2_ref 
-# ref_ville et ref_dep proviennent de l'étape 5, toujours disponibles.
-# La médiane nationale récente est calculée sur df_recent (étape 5).
+
 mediane_prix_m2 = df_recent['prix_m2'].median()
 print(f"Médiane nationale récente (6 derniers mois) : {mediane_prix_m2:.2f} €/m²")
 
 
-# Regroupement dans un dictionnaire unique 
+# Regroupement dans un dict
 modele_final = {
     'model': best_model,                     # Pipeline (preprocessor + LGBM)
     'kmeans': kmeans_all,                    # KMeans 200 clusters
@@ -351,7 +347,7 @@ print("\n Modèle final complet sauvegardé dans 'final_model_appartements.pkl'"
 
 
 # MLflow Tracking Partie FIN 
-from datetime import datetime  # déjà importé en haut, mais s'assurer qu'il est là
+from datetime import datetime  
 
 # Nom du run dynamique
 run_name = f"LGBM_immo_{datetime.now().strftime('%b%d_%H-%M')}"
@@ -370,10 +366,13 @@ with mlflow.start_run(experiment_id=experiment_id, run_name=run_name):
         "r2_test": r2_test
     })
 
-    # Log de l'artefact final (modèle complet)
+    # Log de l'artefact final
     mlflow.log_artifact('final_model_appartements.pkl', artifact_path="modele_immo")
 
     print(" Modèle uploadé sur le serveur MLflow.")
 
 
 print("\n Modèle final complet sauvegardé dans 'final_model_appartements.pkl'")
+
+
+   

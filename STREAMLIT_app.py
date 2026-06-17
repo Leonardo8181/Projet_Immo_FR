@@ -9,7 +9,7 @@ from streamlit_folium import folium_static
 from langchain_mistralai import ChatMistralAI
 
 
-# Configuration & secrets (variables d'environnement)
+# Configuration (variables d'environnement)
 
 API_URL = "https://luleifrance-api-immobilier-france.hf.space/predict"
 MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "")
@@ -128,7 +128,7 @@ def create_map(lat: float, lon: float, adresse: str, estimation: float,
         popup_text = f"<b>Mairie :</b> {nom_mairie}<br>"
         if dist_centre:
             popup_text += f"<b>Distance centre‑ville :</b> {format_distance(dist_centre)}<br>"
-        # La ligne "Vol d'oiseau" a été supprimée
+
         folium.Marker(
             mairie_coords,
             popup=folium.Popup(popup_text, max_width=250),
@@ -171,7 +171,7 @@ st.markdown("Estimez le prix d'un bien immobilier en France métropolitaine, dé
 if not MISTRAL_API_KEY:
     st.sidebar.warning("Clé API Mistral non configurée. Ajoutez-la dans les variables d'environnement.")
 
-# --- Formulaire (sidebar) ---
+# --- Formulaire (sidebar) 
 with st.sidebar:
     st.header("🔍 Caractéristiques du bien")
     with st.form("form_estimation", clear_on_submit=False):
@@ -191,7 +191,7 @@ with st.sidebar:
         )
         submitted = st.form_submit_button("💰 Estimer le prix", use_container_width=True)
 
-# --- Traitement de la soumission ---
+# --- Traitement de la soumission 
 if submitted:
     adresse_val = st.session_state.adresse_input.strip()
     cp_val = st.session_state.cp_input.strip()
@@ -340,7 +340,7 @@ if st.session_state.estimation_data:
     m = create_map(lat, lon, payload['adresse'], data['estimation'], contexte, mairie_coords, mairie_nom, dist_centre)
     folium_static(m, width=1100, height=500)
 
-    # --- Annonce IA ---
+    #  Annonce IA 
     st.markdown('<div class="section-title">📝 Annonce immobilière générée par IA</div>', unsafe_allow_html=True)
     if not MISTRAL_API_KEY:
         st.info("Clé Mistral non configurée.")
@@ -371,3 +371,6 @@ if st.session_state.estimation_data:
             st.session_state.annonce = full
             st.session_state.generating = False
             st.rerun()
+            
+            
+              

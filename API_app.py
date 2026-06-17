@@ -1,4 +1,4 @@
-# API FASTAPI, Modèles chargés depuis AWS S3 (version simplifiée)
+# API FASTAPI, Modeles chargés depuis AWS S3
 import pandas as pd
 import numpy as np
 import requests
@@ -13,7 +13,7 @@ from typing import Optional, List, Literal
 import uvicorn
 
 
-# 1. Configuration S3 et chargement des modèles
+# 1. Configuration S3 et chargement des modeles
 S3_BUCKET = os.environ["S3_BUCKET_NAME"]
 S3_KEY_APPARTEMENT = os.environ["S3_KEY_APPARTEMENT"]
 S3_KEY_MAISON = os.environ["S3_KEY_MAISON"]
@@ -41,9 +41,9 @@ for type_bien, (s3_key, local_path) in MODEL_FILES.items():
         "ref_dep": pack["ref_dep"],
         "mediane_prix_m2": pack["mediane_prix_m2"],
     }
+   
 
-
-# 2. Dictionnaire des départements
+# 2. Dictionnaire des departements
 NOM_DEPARTEMENT = {
     '01': 'Ain', '02': 'Aisne', '03': 'Allier', '04': 'Alpes-de-Haute-Provence',
     '05': 'Hautes-Alpes', '06': 'Alpes-Maritimes', '07': 'Ardèche', '08': 'Ardennes',
@@ -189,7 +189,7 @@ def get_infos_proches(lat, lon, rayon_m=5000):
     return transports, parcs, supermarches
 
 
-# 4. Fonctions métier unifiées
+# 4. Fonctions metier unifiees
 geolocator = Nominatim(user_agent="immo_pred")
 
 def geocode(adresse: str, code_postal_user: Optional[str] = None):
@@ -217,12 +217,12 @@ def estimer_bien(adresse: str, surface: float, n_pieces: int,
     scaler, kmeans, model = md["scaler_coords"], md["kmeans"], md["model"]
     ref_ville, ref_dep, mediane = md["ref_ville"], md["ref_dep"], md["mediane_prix_m2"]
 
-    # Cluster géographique et distance au centre du cluster
+    # Cluster geographique et distance au centre du cluster
     coord = scaler.transform([[lat, lon]])
     cluster = kmeans.predict(coord)[0]
     dist_cluster = np.linalg.norm(coord - kmeans.cluster_centers_[cluster])
 
-    # Prix de référence
+    # Prix de reference
     ligne_ville = ref_ville[ref_ville["code_postal"] == cp_str]
     if not ligne_ville.empty:
         prix_ref = ligne_ville["prix_m2_ref_ville"].iloc[0]
@@ -244,7 +244,7 @@ def estimer_bien(adresse: str, surface: float, n_pieces: int,
         "departement": dept.zfill(2),
     }
 
-    # Features supplémentaires pour les maisons
+    # Features supplementaires pour les maisons
     if type_bien == "Maison":
         row.update({
             "surface_terrain": surface_terrain,
@@ -295,7 +295,7 @@ def estimer_bien(adresse: str, surface: float, n_pieces: int,
         "lon": lon,
     }
 
-# 5. Modèles de données pour l'API
+# 5. Modeles de données pour API
 class BienRequest(BaseModel):
     adresse: str = Field(..., description="Adresse du bien")
     type_bien: Literal["Appartement", "Maison"] = Field(..., description="Type de bien")
