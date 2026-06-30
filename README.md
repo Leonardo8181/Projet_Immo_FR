@@ -1,7 +1,7 @@
 # Projet Immobilier France
 
 ## Résumé du projet
-Ce projet est réalisé dans le cadre de la formation **Data Science & Engineering - Fullstack chez Jedha**, propose une solution complète pour l'estimation du prix immobilier pour la France métropolitaine. Notre approche couvre tout le cycle de vie du projet, depuis l'exploration des données jusqu'à l'application web interactive, en utilisant le Machine Learning pour l'estimation des prix.
+Ce projet est réalisé dans le cadre de la formation ** Data Science & Engineering - Fullstack chez Jedha **, propose une solution complète pour l'estimation du prix immobilier pour la France métropolitaine. Notre approche couvre tout le cycle de vie du projet, depuis l'exploration des données jusqu'à l'application web interactive, en utilisant le Machine Learning pour l'estimation des prix.
 
 ## Source des données
 Nous utilisons le dataset **Immobilier France** disponible sur Kaggle :  
